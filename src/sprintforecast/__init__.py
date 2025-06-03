@@ -5,6 +5,7 @@ from .pert import Pert
 from .forecast import SprintForecaster
 from .momentum import MomentumModel
 from .planner import IntakePlanner
+from .githubio import TriadCSV, GitHubIssues, ActualsCSV
 
 __all__ = [
     "rng",
@@ -17,4 +18,7 @@ __all__ = [
     "SprintForecaster",
     "MomentumModel",
     "IntakePlanner",
+    "TriadCSV",
+    "GitHubIssues",
+    "ActualsCSV",
 ]
