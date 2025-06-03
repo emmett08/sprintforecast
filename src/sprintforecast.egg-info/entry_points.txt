@@ -1,0 +1,2 @@
+[console_scripts]
+sprintforecast = sprintforecast.cli:app
