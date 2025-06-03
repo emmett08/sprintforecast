@@ -1,4 +1,7 @@
 /*.md
+
+*.egg-info/
+
 .venv/
 build/
 dist/
