@@ -1,0 +1,72 @@
+name: Task Estimation (PERT)
+description: Provide PERT (optimistic, likely, pessimistic) time estimates in hours for sprint forecasting.
+title: "[Task]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Task Duration Estimates (PERT)
+        Provide estimates in hours using PERT:
+        - **Optimistic (o)**: Best-case scenario if everything goes well.
+        - **Most likely (m)**: Expected duration under normal circumstances.
+        - **Pessimistic (p)**: Worst-case scenario if there are significant delays.
+        
+        **Note:** Enter all durations in **hours**. You can use decimals for partial hours (e.g., 0.5 for half an hour).
+  - type: input
+    id: o
+    attributes:
+      label: "o"
+      description: "Optimistic duration (hours)."
+      placeholder: "e.g. 1"
+    validations:
+      required: true
+      pattern: '^[0-9]+(\.[0-9]+)?$'
+  - type: input
+    id: m
+    attributes:
+      label: "m"
+      description: "Most likely duration (hours)."
+      placeholder: "e.g. 3"
+    validations:
+      required: true
+      pattern: '^[0-9]+(\.[0-9]+)?$'
+  - type: input
+    id: p
+    attributes:
+      label: "p"
+      description: "Pessimistic duration (hours)."
+      placeholder: "e.g. 5"
+    validations:
+      required: true
+      pattern: '^[0-9]+(\.[0-9]+)?$'
+  - type: markdown
+    attributes:
+      value: |
+        ## Scheduling and Dependencies
+        Please select the sprint and note any blockers, then provide a task description.
+  - type: dropdown
+    id: planned-in-sprint
+    attributes:
+      label: "Planned in sprint"
+      options:
+        - Sprint 1
+        - Sprint 2
+        - Backlog
+    validations:
+      required: true
+  - type: input
+    id: blocked-by
+    attributes:
+      label: "Blocked by"
+      description: "Blocking issues or tasks (optional, separate multiple with commas)."
+      placeholder: "e.g. #42, #99"
+    validations:
+      required: false
+  - type: textarea
+    id: task-description
+    attributes:
+      label: "Task Description"
+      description: "Freeform description of the task."
+      placeholder: "Add any additional details..."
+    validations:
+      required: false

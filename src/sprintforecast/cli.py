@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json, pathlib, numpy as np, pandas as pd
+from .githubio import GitHubIssues, TriadCSV, ActualsCSV
 import typer
 from . import (
     rng, choose_error_family, CapacityPosterior,
@@ -9,6 +10,8 @@ from . import (
 
 app = typer.Typer(add_completion=False)
 
+def _gh(owner: str, repo: str, token: str | None):
+    return GitHubIssues(owner, repo, token)
 
 def _ni_gamma(history: np.ndarray, m0: float = 0, k0: float = 1, a0: float = 2, b0: float = 0.5) -> CapacityPosterior:
     n = len(history)
@@ -73,3 +76,45 @@ def plan_intake(pool: pathlib.Path, capacity_hist: pathlib.Path, dist_file: path
     res = planner.plan(gamma)
     res["momentum"] = mom.momentum()
     typer.echo(json.dumps(res, indent=2))
+
+@app.command()
+def triads(
+    owner: str,
+    repo: str,
+    outfile: pathlib.Path = pathlib.Path("triads.csv"),
+    token: str | None = typer.Option(None, envvar="GITHUB_TOKEN"),
+):
+    gh = _gh(owner, repo, token)
+    TriadCSV(gh.fetch("open")).write(str(outfile))
+    typer.echo(outfile)
+
+@app.command()
+def actuals(
+    owner: str,
+    repo: str,
+    outfile: pathlib.Path = pathlib.Path("actuals.csv"),
+    token: str | None = typer.Option(None, envvar="GITHUB_TOKEN"),
+):
+    gh = _gh(owner, repo, token)
+    ActualsCSV(gh.fetch("closed")).write(str(outfile))
+    typer.echo(outfile)
+
+@app.command()
+def pool(
+    owner: str,
+    repo: str,
+    outfile: pathlib.Path = pathlib.Path("pool.csv"),
+    token: str | None = typer.Option(None, envvar="GITHUB_TOKEN"),
+):
+    """
+    Export triads for the backlog (“pool”)—all open issues that are *not*
+    already assigned to a sprint milestone.
+    """
+    gh = _gh(owner, repo, token)
+    issues = [
+        i for i in gh.fetch("open")
+        if not i.get("milestone")
+        and "o=" in str(i["labels"])
+    ]
+    TriadCSV(issues).write(str(outfile))
+    typer.echo(outfile)
