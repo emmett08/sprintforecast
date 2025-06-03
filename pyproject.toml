@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sprintforecast"
-version = "0.1.9"
+version = "0.1.10"
 description = "Hierarchical Bayesian sprint forecasting and intake planning"
 readme = "README.md"
 requires-python = ">=3.10"

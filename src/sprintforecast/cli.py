@@ -1,11 +1,11 @@
 from __future__ import annotations
 import json, pathlib, numpy as np, pandas as pd
-from .githubio import GitHubIssues, TriadCSV, ActualsCSV
 import typer
 from . import (
     rng, choose_error_family, CapacityPosterior,
     ErrorDistribution, LogNormalError, SkewTError,
     SprintForecaster, MomentumModel, IntakePlanner,
+    GitHubIssues, TriadCSV, ActualsCSV,
 )
 
 app = typer.Typer(add_completion=False)
