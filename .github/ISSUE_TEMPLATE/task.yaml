@@ -1,72 +1,78 @@
-name: Task Estimation (PERT)
-description: Provide PERT (optimistic, likely, pessimistic) time estimates in hours for sprint forecasting.
+name: "🕒 PERT Duration Estimates"
+description: "Capture optimistic, most‑likely and pessimistic hour estimates for sprint forecasting."
 title: "[Task]: "
+labels: ['task', 'sprint-forecast']
+assignees: ['emmett08']
 body:
   - type: markdown
     attributes:
       value: |
-        ## Task Duration Estimates (PERT)
-        Provide estimates in hours using PERT:
-        - **Optimistic (o)**: Best-case scenario if everything goes well.
-        - **Most likely (m)**: Expected duration under normal circumstances.
-        - **Pessimistic (p)**: Worst-case scenario if there are significant delays.
-        
-        **Note:** Enter all durations in **hours**. You can use decimals for partial hours (e.g., 0.5 for half an hour).
+        ## Purpose
+        This ticket collects **PERT duration estimates** for a single work item.
+        Please fill in the three time estimates below; they will feed the sprint‑forecast engine.
+
+        - **Optimistic (o)** – best‑case, no bumps.
+        - **Most likely (m)** – normal outcome.
+        - **Pessimistic (p)** – worst‑case with delays.
+
+        *Enter all durations in **hours**; use decimals for fractions (e.g. `0.5`).*
+
   - type: input
     id: o
     attributes:
-      label: "o"
-      description: "Optimistic duration (hours)."
-      placeholder: "e.g. 1"
+      label: "Optimistic (o)"
+      description: "Optimistic duration in hours."
+      placeholder: "1"
     validations:
       required: true
-      pattern: '^[0-9]+(\.[0-9]+)?$'
+
   - type: input
     id: m
     attributes:
-      label: "m"
-      description: "Most likely duration (hours)."
-      placeholder: "e.g. 3"
+      label: "Most likely (m)"
+      description: "Most likely duration in hours."
+      placeholder: "3"
     validations:
       required: true
-      pattern: '^[0-9]+(\.[0-9]+)?$'
+
   - type: input
     id: p
     attributes:
-      label: "p"
-      description: "Pessimistic duration (hours)."
-      placeholder: "e.g. 5"
+      label: "Pessimistic (p)"
+      description: "Pessimistic duration in hours."
+      placeholder: "5"
     validations:
       required: true
-      pattern: '^[0-9]+(\.[0-9]+)?$'
+
   - type: markdown
     attributes:
       value: |
         ## Scheduling and Dependencies
-        Please select the sprint and note any blockers, then provide a task description.
-  - type: dropdown
-    id: planned-in-sprint
+        Optionally note the sprint milestone and any blockers.
+
+  - type: input
+    id: sprint-milestone
     attributes:
-      label: "Planned in sprint"
-      options:
-        - Sprint 1
-        - Sprint 2
-        - Backlog
+      label: "Sprint milestone"
+      description: "Sprint or milestone name/number (optional). You can also set it later in the sidebar."
+      placeholder: "Sprint 6"
     validations:
-      required: true
+      required: false
+
   - type: input
     id: blocked-by
     attributes:
       label: "Blocked by"
-      description: "Blocking issues or tasks (optional, separate multiple with commas)."
-      placeholder: "e.g. #42, #99"
+      description: "Blocking issues or tasks (optional, comma‑separated)."
+      placeholder: "#42, #99"
     validations:
       required: false
+
   - type: textarea
     id: task-description
     attributes:
       label: "Task Description"
-      description: "Freeform description of the task."
-      placeholder: "Add any additional details..."
+      description: "Free‑form details about the task."
+      placeholder: "Add any additional context…"
     validations:
       required: false
