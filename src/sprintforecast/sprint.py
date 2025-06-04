@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 from datetime import time, datetime
 import heapq
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Callable, Iterator, MutableMapping, Protocol, Sequence, TypeAlias, Sequence, Mapping, Any, runtime_checkable
 import numpy.typing as npt
@@ -16,6 +16,126 @@ from numpy.random import Generator, default_rng
 from scipy.stats import beta as _beta
 from scipy.stats import gamma as _gamma
 
+@dataclass(slots=True, frozen=True)
+class GraphQLClient:
+    gh: GitHubClient
+    _transport: Any = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        from gql.transport.requests import RequestsHTTPTransport
+        t = RequestsHTTPTransport(
+            url="https://api.github.com/graphql",
+            headers={"Authorization": f"Bearer {self.gh.token}"},
+            retries=3,
+        )
+        object.__setattr__(self, "_transport", t)
+
+    def query(self, q: str, variables: dict[str, Any]) -> dict:
+        from gql import Client, gql as _gql
+        c = Client(transport=self._transport, fetch_schema_from_transport=False)
+        return c.execute(_gql(q), variable_values=variables)
+
+_ALIAS: Mapping[str, str] = {
+    "o": "o", "optimistic": "o", "optimistic (o)": "o",
+    "m": "m", "most likely": "m", "most likely (m)": "m",
+    "p": "p", "pessimistic": "p", "pessimistic (p)": "p",
+}
+
+_GQL = """
+query($owner:String!,$repo:String!,$num:Int!){
+  repository(owner:$owner,name:$repo){
+    issue(number:$num){
+      projectItems(first:20){
+        nodes{
+          updatedAt
+          project{ number }
+          fieldValues(first:20){
+            nodes{
+              __typename
+              ... on ProjectV2ItemFieldNumberValue{
+                number
+                field{ ... on ProjectV2FieldCommon{ name } }
+              }
+              ... on ProjectV2ItemFieldTextValue{
+                text
+                field{ ... on ProjectV2FieldCommon{ name } }
+              }
+              ... on ProjectV2ItemFieldSingleSelectValue{
+                name
+                field{ ... on ProjectV2FieldCommon{ name } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+@dataclass(slots=True, frozen=True)
+class TriadFetcher:
+    gh: GitHubClient
+    owner: str
+    repo: str
+    project: int
+
+    _gql: GraphQLClient = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_gql", GraphQLClient(self.gh))
+
+    def _issue_item(self, num: int) -> Mapping[str, Any] | None:
+        data = self._gql.query(
+            _GQL, {"owner": self.owner, "repo": self.repo, "num": num}
+        )
+        nodes: Sequence[Mapping[str, Any]] = (
+            data["repository"]["issue"]["projectItems"]["nodes"]
+        )
+        items = [n for n in nodes if n["project"]["number"] == self.project]
+        if not items:
+            return None
+        
+        return max(items, key=lambda n: n["updatedAt"])
+
+    def _triad(self, num: int) -> tuple[float, float, float] | None:
+        item = self._issue_item(num)
+        if item is None:
+            return None
+
+        latest: dict[str, float] = {}
+        for fv in item["fieldValues"]["nodes"]:
+            val = (
+                fv.get("number")
+                or fv.get("text")
+                or fv.get("name")
+            )
+            if val in (None, ""):
+                continue
+            try:
+                v = float(val)
+            except ValueError:
+                continue
+            key_raw = fv["field"]["name"].strip().lower()
+            key = _ALIAS.get(key_raw)
+            if key:
+                latest[key] = v
+
+        try:
+            return latest["o"], latest["m"], latest["p"]
+        except KeyError:
+            return None
+
+    def fetch(self, issues: list[dict]) -> list[tuple[int, str, Ticket]]:
+        out: list[tuple[int, str, Ticket]] = []
+        for iss in issues:
+            triad = self._triad(iss["number"])
+            if triad is None:
+                continue
+            o, m_, p = triad
+            out.append((iss["number"], iss["title"], Ticket(o, m_, p)))
+        return out
+    
 class Size(Enum):
     XS = 2.0
     S = 4.0
@@ -42,6 +162,8 @@ class SprintIntake:
 class GitHubClient:
     token: str
     base_url: str = "https://api.github.com"
+
+    _s: requests.Session = field(init=False, repr=False, compare=False, hash=False)
 
     def __post_init__(self) -> None:
         s = requests.Session()

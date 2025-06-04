@@ -21,6 +21,8 @@ from .sprint import (
     Sample,
     SprintIntake,
     Size,
+    TriadFetcher,
+    GraphQLClient,
 )
 
 __all__ = [
@@ -46,4 +48,6 @@ __all__ = [
     "Sample",
     "SprintIntake",
     "Size",
+    "TriadFetcher",
+    "GraphQLClient",
 ]

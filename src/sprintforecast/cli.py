@@ -1,18 +1,8 @@
-"""Command‑line interface for SprintForecast.
-
-Sub‑commands
-------------
-plan       – pick a backlog subset that fits the next‑sprint capacity
-forecast   – Monte‑Carlo probability and expected carry‑over for current sprint
-post‑note  – push a markdown digest to a GitHub project column
-"""
 from __future__ import annotations
 
 import os
-from enum import Enum
 from pathlib import Path
 from typing import List, Tuple
-
 import typer
 from rich import print
 
@@ -30,6 +20,8 @@ from .sprint import (
     BetaDistribution,
     RNGSingleton,
     Size,
+    TriadFetcher,
+    GraphQLClient,
 )
 
 def _require_token(tok: str | None) -> str:
@@ -41,21 +33,11 @@ def _require_token(tok: str | None) -> str:
     typer.echo("[bold red]GitHub token missing – use --token or set GITHUB_TOKEN[/]")
     raise typer.Exit(1)
 
-
-PERT_RE = __import__("re").compile(
-    r"PERT:\s*(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)",
-    __import__("re").I,
-)
-
-def _extract_triads(issues: List[dict]) -> List[Tuple[int, str, Ticket]]:
-    out: List[Tuple[int, str, Ticket]] = []
-    for iss in issues:
-        m = PERT_RE.search(iss.get("body", ""))
-        if not m:
-            continue
-        o, m_, p = map(float, m.groups())
-        out.append((iss["number"], iss["title"], Ticket(o, m_, p)))
-    return out
+def _collect_triads(
+    gh: GitHubClient, owner: str, repo: str, project: int
+) -> list[tuple[int, str, Ticket]]:
+    issues = IssueFetcher(gh, owner, repo).fetch(state="open")
+    return TriadFetcher(gh, owner, repo, project).fetch(issues)
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -70,8 +52,7 @@ def plan(
 ):
     token = _require_token(token)
     gh = GitHubClient(token)
-    issues = IssueFetcher(gh, owner, repo).fetch(state="open")
-    triads = _extract_triads(issues)
+    triads = _collect_triads(gh, owner, repo, project)
     if not triads:
         print("[yellow]No issues with PERT triads found.[/]")
         raise typer.Exit(1)
@@ -104,8 +85,7 @@ def plan(
             continue
         print(f"[cyan]{sz.name}[/]  × {len(lst)}")
         for num, title, tk in lst:
-            print(f"   • #{num} {title}  ({mean(tk):.1f} h)")
-
+            print(f"   • #{num} {title}  (o={tk.optimistic}, m={tk.mode}, p={tk.pessimistic})")
 
 @app.command()
 def forecast(
