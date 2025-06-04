@@ -12,16 +12,16 @@ class SprintForecaster:
     capacity_post: CapacityPosterior
     triads: pd.DataFrame
     paths: int = 10_000
-    def _simulate(self) -> np.ndarray:
+    def _simulate(self, sprint_hours: float) -> np.ndarray:
         triad_objs = self.triads[["o", "m", "p"]].apply(lambda r: Pert(*r), axis=1).tolist()
         x_prior = np.vstack([t.sample(self.paths) for t in triad_objs]).T
         errs = self.error_dist.sample(x_prior.size).reshape(self.paths, -1)
         effort = np.exp(errs) * x_prior
         total = effort.sum(axis=1)
         cap = self.capacity_post.sample(self.paths)
-        return total / cap
+        return sprint_hours * total / cap
     def summary(self, sprint_hours: float) -> dict[str, t.Any]:
-        t_complete = self._simulate()
+        t_complete = self._simulate(sprint_hours)
         prob = (t_complete <= sprint_hours).mean()
         brier = prob * (1 - prob)
         a = np.abs(t_complete[:, None] - t_complete[None, :]).mean()
