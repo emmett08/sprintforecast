@@ -19,6 +19,8 @@ from .sprint import (
     SymbolicMetrics,
     ForecastEngine,
     Sample,
+    SprintIntake,
+    Size,
 )
 
 __all__ = [
@@ -42,4 +44,6 @@ __all__ = [
     "SymbolicMetrics",
     "ForecastEngine",
     "Sample",
+    "SprintIntake",
+    "Size",
 ]

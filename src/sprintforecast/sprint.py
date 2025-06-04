@@ -11,11 +11,25 @@ import numpy as np
 import sympy as sp
 import threading
 import requests
+from enum import Enum
 from numpy.random import Generator, default_rng
 from scipy.stats import beta as _beta
 from scipy.stats import gamma as _gamma
 
+class Size(Enum):
+    XS = 2      # ≤ 2 h
+    S  = 4      # >2 – 4 h
+    M  = 8      # >4 – 8 h
+    L  = 16     # >8 – 16 h
+    XL = 24     # >16 – 24 h
+    XXL = math.inf  # >24 h
+
 Sample: TypeAlias = npt.NDArray[np.floating]
+
+@dataclass(slots=True, frozen=True)
+class SprintIntake:
+    totals: Mapping[Size, int]
+    hours: float
 
 @dataclass(slots=True, frozen=True)
 class GitHubClient:
@@ -339,6 +353,47 @@ class SprintForecastEngine(ForecastEngine):
                 success += 1
             carry += (finish > self.remaining_hours).sum()
         return ForecastResult(success / draws, carry / draws)
+
+    def _mean_hours(self, t: Ticket) -> float:
+        return (t.optimistic + 4 * t.mode + t.pessimistic) / 6
+
+    def _bucket(self, h: float) -> Size:
+        for s in Size:
+            if h <= s.value:
+                return s
+        return Size.XXL
+
+    def suggested_intake(
+        self,
+        next_capacity_hours: float,
+        backlog: Sequence[Ticket],
+        carry_hours: float = 0.0,
+        allocation: Mapping[Size, float] | None = None,
+    ) -> SprintIntake:
+        alloc = allocation or {
+            Size.XS: 0.05,
+            Size.S: 0.15,
+            Size.M: 0.35,
+            Size.L: 0.30,
+            Size.XL: 0.15,
+        }
+        avail = next_capacity_hours - carry_hours
+        buckets: dict[Size, int] = {s: 0 for s in Size}
+        sorted_backlog = sorted(backlog, key=self._mean_hours)
+        used = 0.0
+        quota = {s: avail * alloc[s] for s in alloc}
+        for t in sorted_backlog:
+            h = self._mean_hours(t)
+            b = self._bucket(h)
+            if used + h > avail or b == Size.XXL:
+                continue
+            if buckets[b] * h >= quota[b]:
+                continue
+            buckets[b] += 1
+            used += h
+            if used >= avail:
+                break
+        return SprintIntake(buckets, used)
 
 class SymbolicMetrics:
     p = sp.symbols("p", positive=True)
