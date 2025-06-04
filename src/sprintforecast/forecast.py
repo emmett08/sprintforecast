@@ -1,4 +1,5 @@
 from __future__ import annotations
+import typing as t
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass
@@ -20,12 +21,24 @@ class SprintForecaster:
         total = effort.sum(axis=1)
         cap = self.capacity_post.sample(self.paths)
         return sprint_hours * total / cap
+    @staticmethod
+    def _crps(samples: np.ndarray) -> float:
+        x = np.sort(samples)
+        n = x.size
+        coef = 2 * np.arange(1, n + 1) - n - 1
+        mean_abs = (2.0 / (n * n)) * np.sum(coef * x)
+        return 0.5 * mean_abs
     def summary(self, sprint_hours: float) -> dict[str, t.Any]:
         t_complete = self._simulate(sprint_hours)
         prob = (t_complete <= sprint_hours).mean()
         brier = prob * (1 - prob)
-        a = np.abs(t_complete[:, None] - t_complete[None, :]).mean()
-        b = 0.5 * np.abs(t_complete[:, None] - t_complete[None, :]).mean()
-        crps = a - b
+        crps = self._crps(t_complete)
         p50, p80, p95 = np.percentile(t_complete, [50, 80, 95])
-        return {"p50": p50, "p80": p80, "p95": p95, "P_goal": prob, "Brier": brier, "CRPS": crps}
+        return {
+            "p50": float(p50),
+            "p80": float(p80),
+            "p95": float(p95),
+            "P_goal": float(prob),
+            "Brier": float(brier),
+            "CRPS": float(crps),
+        }
