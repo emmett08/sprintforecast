@@ -1,6 +1,15 @@
+"""Command‑line interface for SprintForecast.
+
+Sub‑commands
+------------
+plan       – pick a backlog subset that fits the next‑sprint capacity
+forecast   – Monte‑Carlo probability and expected carry‑over for current sprint
+post‑note  – push a markdown digest to a GitHub project column
+"""
 from __future__ import annotations
 
 import os
+from enum import Enum
 from pathlib import Path
 from typing import List, Tuple
 
@@ -20,71 +29,82 @@ from .sprint import (
     SkewTDistribution,
     BetaDistribution,
     RNGSingleton,
+    Size,
 )
 
-
-def _require_token(token: str | None) -> str:
-    if token:
-        return token
+def _require_token(tok: str | None) -> str:
+    if tok:
+        return tok
     env = os.getenv("GITHUB_TOKEN")
     if env:
         return env
-    typer.echo("[bold red]GitHub token missing – pass --token or set GITHUB_TOKEN[/]")
+    typer.echo("[bold red]GitHub token missing – use --token or set GITHUB_TOKEN[/]")
     raise typer.Exit(1)
 
 
-def _simple_triads(issues: List[dict]) -> List[Tuple[int, str, Ticket]]:
-    import re
+PERT_RE = __import__("re").compile(
+    r"PERT:\s*(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)",
+    __import__("re").I,
+)
 
-    pat = re.compile(r"PERT:\s*(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)")
+def _extract_triads(issues: List[dict]) -> List[Tuple[int, str, Ticket]]:
     out: List[Tuple[int, str, Ticket]] = []
     for iss in issues:
-        body = iss.get("body") or ""
-        m = pat.search(body)
+        m = PERT_RE.search(iss.get("body", ""))
         if not m:
             continue
         o, m_, p = map(float, m.groups())
         out.append((iss["number"], iss["title"], Ticket(o, m_, p)))
     return out
 
-
 app = typer.Typer(add_completion=False, no_args_is_help=True)
-
 
 @app.command()
 def plan(
-    owner: str = typer.Option(...),
-    repo: str = typer.Option(...),
-    project: int = typer.Option(...),
-    team: int = typer.Option(...),
-    length: int = typer.Option(...),
-    token: str | None = typer.Option(None),
+    owner: str = typer.Option(..., help="GitHub org/user"),
+    repo: str = typer.Option(..., help="Repository"),
+    project: int = typer.Option(..., help="Project‑board number (unused for now)"),
+    team: int = typer.Option(..., help="Developer head‑count"),
+    length: int = typer.Option(..., help="Sprint length in days"),
+    token: str | None = typer.Option(None, help="PAT or env GITHUB_TOKEN"),
 ):
     token = _require_token(token)
     gh = GitHubClient(token)
-    open_issues = IssueFetcher(gh, owner, repo).fetch(state="open")
+    issues = IssueFetcher(gh, owner, repo).fetch(state="open")
+    triads = _extract_triads(issues)
+    if not triads:
+        print("[yellow]No issues with PERT triads found.[/]")
+        raise typer.Exit(1)
 
-    cap_hours = team * length * 6
+    cap = team * length * 6  # TODO: make this configurable 
 
     def mean(t: Ticket) -> float:
         return (t.optimistic + 4 * t.mode + t.pessimistic) / 6
 
-    triads = _simple_triads(open_issues)
     triads.sort(key=lambda x: mean(x[2]))
 
-    chosen: List[Tuple[int, str, Ticket]] = []
+    buckets: dict[Size, List[Tuple[int, str, Ticket]]] = {s: [] for s in Size}
     used = 0.0
     for num, title, tk in triads:
-        m = mean(tk)
-        if used + m > cap_hours:
+        hrs = mean(tk)
+        if used + hrs > cap:
+            continue
+        sz = Size.classify(hrs)
+        if sz is Size.XXL:
+            continue
+        buckets[sz].append((num, title, tk))
+        used += hrs
+        if used >= cap:
             break
-        chosen.append((num, title, tk))
-        used += m
 
-    print("[bold]Recommended tickets:[/]")
-    for num, title, tk in chosen:
-        print(f"  • #{num}: {title} — PERT {tk.optimistic}/{tk.mode}/{tk.pessimistic} h")
-    print(f"Sprint capacity used: {used:.1f} / {cap_hours} h")
+    print("[bold]Intake suggestion[/] (capacity {:.1f} / {} h)".format(used, cap))
+    for sz in [Size.XS, Size.S, Size.M, Size.L, Size.XL]:
+        lst = buckets[sz]
+        if not lst:
+            continue
+        print(f"[cyan]{sz.name}[/]  × {len(lst)}")
+        for num, title, tk in lst:
+            print(f"   • #{num} {title}  ({mean(tk):.1f} h)")
 
 
 @app.command()
@@ -92,35 +112,29 @@ def forecast(
     owner: str = typer.Option(...),
     repo: str = typer.Option(...),
     project: int = typer.Option(...),
-    remaining: float = typer.Option(...),
+    remaining: float = typer.Option(..., help="Hours left in sprint"),
     workers: int = typer.Option(3),
     draws: int = typer.Option(2000),
     token: str | None = typer.Option(None),
 ):
     token = _require_token(token)
     gh = GitHubClient(token)
-    open_issues = IssueFetcher(gh, owner, repo).fetch(state="open")
-    triads = [tk for _, _, tk in _simple_triads(open_issues)]
+    triads = [tk for _, _, tk in _extract_triads(IssueFetcher(gh, owner, repo).fetch(state="open"))]
     if not triads:
-        print("[yellow]No issues with PERT triads found – aborting.[/]")
+        print("[yellow]No issues with PERT triads found.[/]")
         raise typer.Exit(1)
-
-    exec_err = SkewTDistribution(0, 0.25, 2, 5)
-    review_lag = BetaDistribution(2, 5, 0.1, 1.5)
-    capacity = BetaDistribution(8, 2, 40, 55)
 
     engine = SprintForecastEngine(
         tickets=triads,
-        exec_strategy=ExecutionStrategy(exec_err),
-        review_strategy=ReviewStrategy(review_lag),
-        capacity_strategy=CapacityStrategy(capacity),
+        exec_strategy=ExecutionStrategy(SkewTDistribution(0, 0.25, 2, 5)),
+        review_strategy=ReviewStrategy(BetaDistribution(2, 5, 0.1, 1.5)),
+        capacity_strategy=CapacityStrategy(BetaDistribution(8, 2, 40, 55)),
         simulator=QueueSimulator(workers),
         remaining_hours=remaining,
         rng=RNGSingleton.rng(),
     )
-
     res = engine.forecast(draws)
-    print(f"Probability of finishing on time: {res.probability:.1%}")
+    print(f"Probability of finishing: [bold]{res.probability:.1%}[/]")
     print(f"Expected carry‑over: {res.expected_carry:.1f} tickets")
 
 
@@ -133,8 +147,7 @@ def post_note(
     token = _require_token(token)
     gh = GitHubClient(token)
     ProjectBoard(gh, column_id).post_note(note_path.read_text())
-    print("✅ Note posted.")
-
+    print("✅ Note posted")
 
 def run() -> None:
     app()

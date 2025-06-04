@@ -17,12 +17,19 @@ from scipy.stats import beta as _beta
 from scipy.stats import gamma as _gamma
 
 class Size(Enum):
-    XS = 2      # ≤ 2 h
-    S  = 4      # >2 – 4 h
-    M  = 8      # >4 – 8 h
-    L  = 16     # >8 – 16 h
-    XL = 24     # >16 – 24 h
-    XXL = math.inf  # >24 h
+    XS = 2.0
+    S = 4.0
+    M = 8.0
+    L = 16.0
+    XL = 24.0
+    XXL = float("inf")
+
+    @classmethod
+    def classify(cls, hrs: float) -> "Size":
+        for s in cls:
+            if hrs <= s.value:
+                return s
+        return cls.XXL
 
 Sample: TypeAlias = npt.NDArray[np.floating]
 
@@ -56,7 +63,6 @@ class GitHubClient:
 
     def post(self, path: str, **kw) -> requests.Response:
         return self._s.post(f"{self.base_url.rstrip('/')}/{path.lstrip('/')}", **kw)
-
 
 @dataclass(slots=True, frozen=True)
 class IssueFetcher:
