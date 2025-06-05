@@ -17,10 +17,10 @@ jobs:
         with:
           script: |
             const item = context.payload.project_v2_item;
-            const issue = item.content;            // PR or issue object
-            if (!issue || !issue.number) return;   // safety check
+            const issue = item.content;
+            if (!issue || !issue.number) return;
 
-            const status = item.field_value?.name; // "Dev", "Review", "Done", …
+            const status = item.field_value?.name;
             if (!status) return;
 
             const owner = context.repo.owner;
@@ -34,7 +34,6 @@ jobs:
                    .catch(()=>{});
             }
 
-            // add the one that corresponds to the new Status
             if (status === 'Dev')
               await github.rest.issues.addLabels({owner,repo,issue_number:num,labels:['dev']});
             else if (status === 'Review')
