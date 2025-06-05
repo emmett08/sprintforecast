@@ -2,8 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .sprint import GitHubClient
-
+from .github_client import GitHubClient
 
 @dataclass(slots=True, frozen=True)
 class DependencyFetcher:

@@ -2,9 +2,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .sprint import GitHubClient, Ticket
-from .dependency_fetcher import DependencyFetcher
+from .github_client import GitHubClient
 
+from .ticket import Ticket
+from .dependency_fetcher import DependencyFetcher
 
 @dataclass(slots=True, frozen=True)
 class Triad:

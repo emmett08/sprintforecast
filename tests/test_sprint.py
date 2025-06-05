@@ -5,20 +5,17 @@ import sympy as sp
 import numpy as np
 import pytest
 
+from sprintforecast.distribution_factory import DistributionFactory
+from sprintforecast.distributions import BetaDistribution, SkewTDistribution
+from sprintforecast.forecast import SprintForecastEngine
+from sprintforecast.queue_simulator import QueueSimulator
+from sprintforecast.rng_singleton import RNGSingleton
 from sprintforecast.sprint import (
     Size,
-    Ticket,
-    BetaDistribution,
-    DistributionFactory,
-    QueueSimulator,
-    SkewTDistribution,
-    ExecutionStrategy,
-    ReviewStrategy,
-    CapacityStrategy,
-    SprintForecastEngine,
-    RNGSingleton,
-    SymbolicMetrics,
 )
+from sprintforecast.strategies import CapacityStrategy, ExecutionStrategy, ReviewStrategy
+from sprintforecast.symbolic_metrics import SymbolicMetrics
+from sprintforecast.ticket import Ticket
 
 
 def test_size_classification():
