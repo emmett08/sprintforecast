@@ -1,0 +1,41 @@
+name: sync-status-labels
+
+on:
+  "project_v2_item":
+    types: [edited]
+
+permissions:
+  issues: write
+  repository-projects: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: mirror Status → labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const item = context.payload.project_v2_item;
+            const issue = item.content;            // PR or issue object
+            if (!issue || !issue.number) return;   // safety check
+
+            const status = item.field_value?.name; // "Dev", "Review", "Done", …
+            if (!status) return;
+
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const num   = issue.number;
+
+            // remove old workflow labels (ignore failure if absent)
+            const old = ['dev','review'];
+            for (const l of old) {
+              await github.rest.issues.removeLabel({owner,repo,issue_number:num,name:l})
+                   .catch(()=>{});
+            }
+
+            // add the one that corresponds to the new Status
+            if (status === 'Dev')
+              await github.rest.issues.addLabels({owner,repo,issue_number:num,labels:['dev']});
+            else if (status === 'Review')
+              await github.rest.issues.addLabels({owner,repo,issue_number:num,labels:['review']});

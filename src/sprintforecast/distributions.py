@@ -2,6 +2,7 @@ import math
 import numpy as np
 from scipy.stats import beta as _beta, gamma as _gamma
 from dataclasses import dataclass
+
 from .types import Sample
 from numpy.random import Generator
 from typing import Protocol, runtime_checkable
@@ -83,7 +84,19 @@ class LogNormalDistribution(Distribution):
 
     def sample(self, size: int | tuple[int, ...] = 1, *, rng: Generator) -> Sample:
         return rng.lognormal(self.mu, self.sigma, size=size)
-    
+
+
+@dataclass(slots=True, frozen=True)
+class EmpiricalDistribution(Distribution):
+    samples: np.ndarray
+
+    def sample(
+        self,
+        size: int | tuple[int, ...] = 1,
+        *,
+        rng: Generator,
+    ):
+        return rng.choice(self.samples, size=size, replace=True)
 
 class DistributionFactory:
     _registry: MutableMapping[str, type[Distribution]] = {}
@@ -105,3 +118,4 @@ DistributionFactory.register("beta")(BetaDistribution)
 DistributionFactory.register("skewt")(SkewTDistribution)
 DistributionFactory.register("gamma")(GammaDistribution)
 DistributionFactory.register("lognormal")(LogNormalDistribution)
+DistributionFactory.register("empirical")(EmpiricalDistribution)
