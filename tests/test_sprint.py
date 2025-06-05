@@ -4,19 +4,14 @@ import math
 import sympy as sp
 import numpy as np
 import pytest
-
-from sprintforecast.distribution_factory import DistributionFactory
-from sprintforecast.distributions import BetaDistribution, SkewTDistribution
+from sprintforecast.distributions import BetaDistribution, DistributionFactory, SkewTDistribution
 from sprintforecast.forecast import SprintForecastEngine
 from sprintforecast.queue_simulator import QueueSimulator
 from sprintforecast.rng_singleton import RNGSingleton
-from sprintforecast.sprint import (
-    Size,
-)
+from sprintforecast.size import Size
 from sprintforecast.strategies import CapacityStrategy, ExecutionStrategy, ReviewStrategy
 from sprintforecast.symbolic_metrics import SymbolicMetrics
 from sprintforecast.ticket import Ticket
-
 
 def test_size_classification():
     assert Size.classify(0.1) is Size.XS
