@@ -65,30 +65,30 @@ def plan(
     def mean(t: Ticket) -> float:
         return (t.optimistic + 4 * t.mode + t.pessimistic) / 6
 
-    triads.sort(key=lambda x: mean(x[2]))
+    triads.sort(key=lambda t: mean(t.ticket))
 
     buckets: dict[Size, List[Tuple[int, str, Ticket]]] = {s: [] for s in Size}
     used = 0.0
-    for num, title, tk in triads:
-        hrs = mean(tk)
+    for tr in triads:
+        hrs = mean(tr.ticket)
         if used + hrs > cap:
             continue
         sz = Size.classify(hrs)
         if sz is Size.XXL:
             continue
-        buckets[sz].append((num, title, tk))
+        buckets[sz].append(tr)
         used += hrs
         if used >= cap:
             break
 
-    print("[bold]Intake suggestion[/] (capacity {:.1f} / {} h)".format(used, cap))
-    for sz in [Size.XS, Size.S, Size.M, Size.L, Size.XL]:
-        lst = buckets[sz]
-        if not lst:
+    print(f"[bold]Intake suggestion[/] (capacity {used:.1f} / {cap} h)")
+    for sz in (Size.XS, Size.S, Size.M, Size.L, Size.XL):
+        group = buckets[sz]
+        if not group:
             continue
-        print(f"[cyan]{sz.name}[/]  × {len(lst)}")
-        for num, title, tk in lst:
-            print(f"   • #{num} {title}  ({mean(tk):.1f} h)")
+        print(f"[cyan]{sz.name}[/] × {len(group)}")
+        for tr in group:
+            print(f"   • #{tr.number} {tr.title} ({mean(tr.ticket):.1f} h)")
 
 
 @app.command()
@@ -103,7 +103,7 @@ def forecast(
 ):
     token = _require_token(token)
     gh = GitHubClient(token)
-    triads = [tk for _, _, tk in TriadFetcher(gh, owner, repo, project).fetch()]
+    triads = [tr.ticket for tr in TriadFetcher(gh, owner, repo, project).fetch()]
     if not triads:
         print("[yellow]No issues with PERT triads found.[/]")
         raise typer.Exit(1)

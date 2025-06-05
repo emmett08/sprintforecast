@@ -1,3 +1,4 @@
+from .types import Sample
 from .sprint import (
     GitHubClient,
     IssueFetcher,
@@ -18,7 +19,6 @@ from .sprint import (
     SprintForecastEngine,
     SymbolicMetrics,
     ForecastEngine,
-    Sample,
     SprintIntake,
 )
 

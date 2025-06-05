@@ -1,8 +1,18 @@
-# triad_fetcher.py
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
+
 from .sprint import GitHubClient, Ticket
+from .dependency_fetcher import DependencyFetcher
+
+
+@dataclass(slots=True, frozen=True)
+class Triad:
+    number: int
+    title: str
+    ticket: Ticket
+    deps: tuple[int, ...]
+
 
 @dataclass(slots=True, frozen=True)
 class TriadFetcher:
@@ -27,9 +37,7 @@ class TriadFetcher:
                   nodes{
                     ... on ProjectV2ItemFieldNumberValue{
                       number
-                      field{
-                        ... on ProjectV2FieldCommon{ name }
-                      }
+                      field{ ... on ProjectV2FieldCommon{ name } }
                     }
                   }
                 }
@@ -53,40 +61,48 @@ class TriadFetcher:
                     "after": after,
                 },
             },
-            headers={"Accept": "application/json"},
         )
         r.raise_for_status()
-        payload = r.json()
+        payload: dict[str, Any] = r.json()
         if "errors" in payload:
-            raise RuntimeError(f"GraphQL error: {payload['errors']}")
-        repo = payload.get("data", {}).get("repository")
-        if not repo:
-            return {"nodes": [], "pageInfo": {"hasNextPage": False}}
-        return repo["issues"]
+            raise RuntimeError(payload["errors"])
+        return payload["data"]["repository"]["issues"]
 
     @staticmethod
-    def _num(item: dict[str, Any], key: str) -> float | None:
-        for n in item.get("fieldValues", {}).get("nodes", []):
+    def _num(it: dict[str, Any], k: str) -> float | None:
+        for n in it.get("fieldValues", {}).get("nodes", []):
             fld = n.get("field") or {}
-            if (fld.get("name", "").lower() == key) and (n.get("number") is not None):
+            if fld.get("name", "").lower() == k and n.get("number") is not None:
                 return float(n["number"])
         return None
 
-    def fetch(self) -> list[tuple[int, str, Ticket]]:
-        out: list[tuple[int, str, Ticket]] = []
+    def fetch(self) -> list[Triad]:
+        out: list[Triad] = []
+        dep_f = DependencyFetcher(self.client, self.owner, self.repo)
         after: str | None = None
         while True:
             page = self._run(after)
-            for iss in page["nodes"]:
-                for it in iss["projectItems"]["nodes"]:
+            for n in page["nodes"]:
+                triad: tuple[float, float, float] | None = None
+                for it in n["projectItems"]["nodes"]:
                     if it["project"]["number"] != self.project:
                         continue
                     o = self._num(it, "o")
                     m = self._num(it, "m")
                     p = self._num(it, "p")
                     if None not in (o, m, p):
-                        out.append((iss["number"], iss["title"], Ticket(o, m, p)))
+                        triad = (o, m, p)
                         break
+                if triad:
+                    deps = dep_f.fetch(n["number"])
+                    out.append(
+                        Triad(
+                            number=n["number"],
+                            title=n["title"],
+                            ticket=Ticket(*triad),
+                            deps=tuple(deps),
+                        )
+                    )
             if not page["pageInfo"]["hasNextPage"]:
                 break
             after = page["pageInfo"]["endCursor"]

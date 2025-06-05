@@ -5,8 +5,7 @@ from datetime import time, datetime
 import heapq
 from dataclasses import dataclass, field
 import math
-from typing import Callable, Iterator, MutableMapping, Protocol, Sequence, TypeAlias, Sequence, Mapping, Any, runtime_checkable
-import numpy.typing as npt
+from typing import Callable, Iterator, MutableMapping, Protocol, Sequence, Sequence, Mapping, Any, runtime_checkable
 import numpy as np
 import sympy as sp
 import threading
@@ -14,9 +13,9 @@ import requests
 from numpy.random import Generator, default_rng
 from scipy.stats import beta as _beta
 from scipy.stats import gamma as _gamma
-from .size import Size
 
-Sample: TypeAlias = npt.NDArray[np.floating]
+from .types import Sample
+from .size import Size
 
 @dataclass(slots=True, frozen=True)
 class SprintIntake:
