@@ -2,7 +2,7 @@ from .forecast import ForecastEngine, ForecastResult, SprintForecastEngine
 from .queue_simulator import QueueSimulator
 from .strategies import CapacityStrategy, ExecutionStrategy, ReviewStrategy
 from .ticket import Ticket
-from .distributions import BetaDistribution, GammaDistribution, LogNormalDistribution, SkewTDistribution, DistributionFactory
+from .distributions import BetaDistribution, GammaDistribution, LogNormalDistribution, SkewTDistribution, EmpiricalDistribution, DistributionFactory
 from .rng_singleton import RNGSingleton
 from .project_board import ProjectBoard
 from .timeline_fetcher import TimelineFetcher
@@ -13,6 +13,8 @@ from .types import Sample
 from .symbolic_metrics import (
     SymbolicMetrics,
 )
+from .triad_fetcher import TriadFetcher
+from .real_engine import RealSprintForecastEngine
 
 from .size import Size
 
@@ -39,4 +41,8 @@ __all__ = [
     "Sample",
     "SprintIntake",
     "Size",
+    "TriadFetcher",
+    "DurationExtractor",
+    "EmpiricalDistribution",
+    "RealSprintForecastEngine",
 ]
