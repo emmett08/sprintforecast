@@ -14,6 +14,7 @@ dependencies = [
   "typer[all]>=0.12",
   "requests>=2.32",
   "sympy>=1.14",
+  "graphql-core>=3.2",
 ]
 
 [project.optional-dependencies]

@@ -20,8 +20,9 @@ from .sprint import (
     ForecastEngine,
     Sample,
     SprintIntake,
-    Size,
 )
+
+from .size import Size
 
 __all__ = [
     "GitHubClient",

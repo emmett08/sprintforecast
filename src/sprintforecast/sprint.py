@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 from datetime import time, datetime
 import heapq
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Callable, Iterator, MutableMapping, Protocol, Sequence, TypeAlias, Sequence, Mapping, Any, runtime_checkable
 import numpy.typing as npt
@@ -11,25 +11,10 @@ import numpy as np
 import sympy as sp
 import threading
 import requests
-from enum import Enum
 from numpy.random import Generator, default_rng
 from scipy.stats import beta as _beta
 from scipy.stats import gamma as _gamma
-
-class Size(Enum):
-    XS = 2.0
-    S = 4.0
-    M = 8.0
-    L = 16.0
-    XL = 24.0
-    XXL = float("inf")
-
-    @classmethod
-    def classify(cls, hrs: float) -> "Size":
-        for s in cls:
-            if hrs <= s.value:
-                return s
-        return cls.XXL
+from .size import Size
 
 Sample: TypeAlias = npt.NDArray[np.floating]
 
@@ -42,6 +27,7 @@ class SprintIntake:
 class GitHubClient:
     token: str
     base_url: str = "https://api.github.com"
+    _s: requests.Session = field(init=False, repr=False, compare=False, hash=False)
 
     def __post_init__(self) -> None:
         s = requests.Session()

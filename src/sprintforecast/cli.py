@@ -15,7 +15,8 @@ from typing import List, Tuple
 
 import typer
 from rich import print
-
+from .size import Size
+from .triad_fetcher import TriadFetcher
 from .sprint import (
     GitHubClient,
     IssueFetcher,
@@ -28,8 +29,7 @@ from .sprint import (
     QueueSimulator,
     SkewTDistribution,
     BetaDistribution,
-    RNGSingleton,
-    Size,
+    RNGSingleton
 )
 
 def _require_token(tok: str | None) -> str:
@@ -40,22 +40,6 @@ def _require_token(tok: str | None) -> str:
         return env
     typer.echo("[bold red]GitHub token missing – use --token or set GITHUB_TOKEN[/]")
     raise typer.Exit(1)
-
-
-PERT_RE = __import__("re").compile(
-    r"PERT:\s*(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)",
-    __import__("re").I,
-)
-
-def _extract_triads(issues: List[dict]) -> List[Tuple[int, str, Ticket]]:
-    out: List[Tuple[int, str, Ticket]] = []
-    for iss in issues:
-        m = PERT_RE.search(iss.get("body", ""))
-        if not m:
-            continue
-        o, m_, p = map(float, m.groups())
-        out.append((iss["number"], iss["title"], Ticket(o, m_, p)))
-    return out
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -70,8 +54,8 @@ def plan(
 ):
     token = _require_token(token)
     gh = GitHubClient(token)
-    issues = IssueFetcher(gh, owner, repo).fetch(state="open")
-    triads = _extract_triads(issues)
+    # issues = IssueFetcher(gh, owner, repo).fetch(state="open")
+    triads = TriadFetcher(gh, owner, repo, project).fetch()
     if not triads:
         print("[yellow]No issues with PERT triads found.[/]")
         raise typer.Exit(1)
@@ -119,7 +103,7 @@ def forecast(
 ):
     token = _require_token(token)
     gh = GitHubClient(token)
-    triads = [tk for _, _, tk in _extract_triads(IssueFetcher(gh, owner, repo).fetch(state="open"))]
+    triads = [tk for _, _, tk in TriadFetcher(gh, owner, repo, project).fetch()]
     if not triads:
         print("[yellow]No issues with PERT triads found.[/]")
         raise typer.Exit(1)
