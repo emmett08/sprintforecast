@@ -21,7 +21,7 @@ from .project_board import ProjectBoard
 from .github_client import GitHubClient
 from .size import Size
 from .triad_fetcher import TriadFetcher
-from .label_durations import extract_label_durations as extract_durations
+from .label_durations import LabelDurationExtractor
 from .forecast import SprintForecastEngine
 
 
@@ -102,7 +102,7 @@ def forecast(
     if empirical:
         triads = TriadFetcher(gh, owner, repo, project).fetch()
         nums = [t.number for t in triads]
-        dev, rev = extract_durations(gh, owner, repo, nums)
+        dev, rev = LabelDurationExtractor(gh, owner, repo).extract(nums)
         if dev.size + rev.size == 0:
             print("[yellow]No dev/review label history yet – move a card or run without --empirical[/]")
             raise typer.Exit(1)

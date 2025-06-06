@@ -1,18 +1,18 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, FrozenSet
 
 from .github_client import GitHubClient
-
 from .ticket import Ticket
 from .dependency_fetcher import DependencyFetcher
+
 
 @dataclass(slots=True, frozen=True)
 class Triad:
     number: int
     title: str
     ticket: Ticket
-    deps: tuple[int, ...]
 
 
 @dataclass(slots=True, frozen=True)
@@ -95,13 +95,18 @@ class TriadFetcher:
                         triad = (o, m, p)
                         break
                 if triad:
-                    deps = dep_f.fetch(n["number"])
+                    deps: FrozenSet[int] = frozenset(dep_f.fetch(n["number"]))
                     out.append(
                         Triad(
                             number=n["number"],
                             title=n["title"],
-                            ticket=Ticket(*triad),
-                            deps=tuple(deps),
+                            ticket=Ticket(
+                                number=n["number"],
+                                optimistic=triad[0],
+                                mode=triad[1],
+                                pessimistic=triad[2],
+                                dependencies=deps,
+                            ),
                         )
                     )
             if not page["pageInfo"]["hasNextPage"]:
